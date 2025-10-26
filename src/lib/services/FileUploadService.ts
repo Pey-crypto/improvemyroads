@@ -2,6 +2,7 @@ import { ensureDirectoryExists, writeFile, getUploadBaseDir } from '@/src/lib/ut
 import path from 'path';
 import { nanoid } from 'nanoid';
 import sharp from 'sharp';
+import { put } from '@vercel/blob';
 
 export interface UploadResult {
   url: string; // /uploads/reports/2024/10/25/xxx.jpg
@@ -53,15 +54,49 @@ export class FileUploadService {
   async uploadImage(file: File, folder: 'reports' | 'avatars' = 'reports'): Promise<UploadResult> {
     this.validateImage(file);
     const { rel, abs } = this.getDatePath(folder);
-    await ensureDirectoryExists(abs);
 
     const filename = this.generateFilename(file.name);
     const ab = await file.arrayBuffer();
     const buffer = Buffer.from(ab);
 
-    // Probe image and optionally resize for thumbnail
     const meta = await sharp(buffer).metadata();
 
+    const useBlob = (process.env.UPLOAD_PROVIDER || '').toLowerCase() === 'blob';
+    if (useBlob) {
+      const key = `${rel}/${filename}`;
+      const uploaded = await put(key, buffer, {
+        access: 'public',
+        contentType: file.type,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+
+      let thumbnailUrl: string | undefined;
+      if (meta.width && meta.width > 1200) {
+        const thumbName = filename.replace(/\.(\w+)$/, '-thumb.$1');
+        const thumbKey = `${rel}/${thumbName}`;
+        const thumbBuffer = await sharp(buffer).resize({ width: 1200 }).toBuffer();
+        const thumbUploaded = await put(thumbKey, thumbBuffer, {
+          access: 'public',
+          contentType: file.type,
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        });
+        thumbnailUrl = thumbUploaded.url;
+      }
+
+      const result: UploadResult = {
+        url: uploaded.url,
+        path: key,
+        filename,
+        size: buffer.length,
+        mimeType: file.type,
+        width: meta.width,
+        height: meta.height,
+        thumbnailUrl,
+      };
+      return result;
+    }
+
+    await ensureDirectoryExists(abs);
     const fullPath = path.join(abs, filename);
     await writeFile(fullPath, buffer);
 
