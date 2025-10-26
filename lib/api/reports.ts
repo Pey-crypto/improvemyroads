@@ -9,6 +9,17 @@ export type Report = {
   imageUrl?: string;
   latitude?: number;
   longitude?: number;
+  district?: string;
+  roadData?: {
+    roadName: string;
+    roadType: string;
+    roadId?: string;
+    district?: string;
+    distanceFromRoad: number;
+    matchConfidence: number;
+    tileCoordinates: { z: number; x: number; y: number };
+    matchedAt: string | Date;
+  };
   upvotes: number;
   downvotes: number;
   createdAt?: string;
@@ -17,12 +28,55 @@ export type Report = {
 
 export type Pagination = { page: number; limit: number; total: number; totalPages: number };
 
+export type ReportStats = {
+  total: number;
+  byStatus: Record<string, number>;
+  byCategory: Record<string, number>;
+  topRoads: { name: string; count: number }[];
+  topDistricts: { name: string; count: number }[];
+};
+
+export type ReportTimeseries = {
+  bucket: 'day' | 'week' | 'month';
+  range: { start: string; end: string };
+  points: Array<{ date: string; total: number; byStatus: Record<string, number> }>;
+};
+
 export async function getReports(params: Record<string, string | number | undefined>) {
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null && String(v).length) qs.set(k, String(v));
   });
   return api.get<{ reports: Report[]; pagination?: Pagination }>(`/api/reports?${qs.toString()}`);
+}
+
+export async function getReportStats(params: { lat?: number; lng?: number; radiusKm?: number; district?: string } = {}) {
+  const qs = new URLSearchParams();
+  if (typeof params.lat === 'number') qs.set('lat', String(params.lat));
+  if (typeof params.lng === 'number') qs.set('lng', String(params.lng));
+  if (typeof params.radiusKm === 'number') qs.set('radiusKm', String(params.radiusKm));
+  if (params.district) qs.set('district', params.district);
+  return api.get<ReportStats>(`/api/reports/stats?${qs.toString()}`);
+}
+
+export async function getReportTimeseries(params: {
+  lat?: number;
+  lng?: number;
+  radiusKm?: number;
+  district?: string;
+  bucket?: 'day' | 'week' | 'month';
+  start?: string | Date;
+  end?: string | Date;
+} = {}) {
+  const qs = new URLSearchParams();
+  if (typeof params.lat === 'number') qs.set('lat', String(params.lat));
+  if (typeof params.lng === 'number') qs.set('lng', String(params.lng));
+  if (typeof params.radiusKm === 'number') qs.set('radiusKm', String(params.radiusKm));
+  if (params.district) qs.set('district', params.district);
+  if (params.bucket) qs.set('bucket', params.bucket);
+  if (params.start) qs.set('start', typeof params.start === 'string' ? params.start : params.start.toISOString());
+  if (params.end) qs.set('end', typeof params.end === 'string' ? params.end : params.end.toISOString());
+  return api.get<ReportTimeseries>(`/api/reports/timeseries?${qs.toString()}`);
 }
 
 export async function getMyReports(page = 1, limit = 20) {

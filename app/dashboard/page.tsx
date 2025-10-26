@@ -1,21 +1,20 @@
 "use client"
 
 import { AppSidebar } from "@/components/app-sidebar"
-import { ChartAreaInteractive } from "@/components/chart-area-interactive"
-import { DataTable } from "@/components/data-table"
-import { SectionCards } from "@/components/section-cards"
+// import { ChartAreaInteractive } from "@/components/chart-area-interactive"
+// import { DataTable } from "@/components/data-table"
+// import { SectionCards } from "@/components/section-cards"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import ProtectedRoute from "@/components/auth/ProtectedRoute"
 import { useAuth } from "@/lib/contexts/AuthContext"
 import { CreateIssueDialog } from "@/components/dashboard/CreateIssueDialog"
-import data from "@/src/app/dashboard/data.json"
-import { schema } from "@/components/data-table"
-import { z } from "zod"
+import { StatsCards } from "@/components/dashboard/StatsCards"
+import { AdminIssuesTable } from "@/components/dashboard/AdminIssuesTable"
+import { IssuesTrend } from "@/components/dashboard/IssuesTrend"
 
 export default function Page() {
   const { user } = useAuth()
-  const rows: z.infer<typeof schema>[] = schema.array().parse(data)
   return (
     <ProtectedRoute>
       <SidebarProvider
@@ -30,16 +29,23 @@ export default function Page() {
           <div className="flex flex-1 flex-col">
             <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-                {user?.role === 'CITIZEN' && (
-                  <div className="px-4 lg:px-6">
-                    <CreateIssueDialog />
-                  </div>
+                {user?.role === 'ADMIN' ? (
+                  <>
+                    <StatsCards mode="admin" />
+                    <IssuesTrend mode="admin" />
+                    <AdminIssuesTable />
+                  </>
+                ) : (
+                  <>
+                    {user?.role === 'CITIZEN' && (
+                      <div className="px-4 lg:px-6">
+                        <CreateIssueDialog />
+                      </div>
+                    )}
+                    <StatsCards mode="public" />
+                    <IssuesTrend mode="public" />
+                  </>
                 )}
-                <SectionCards />
-                <div className="px-4 lg:px-6">
-                  <ChartAreaInteractive />
-                </div>
-                <DataTable data={rows} />
               </div>
             </div>
           </div>
