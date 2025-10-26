@@ -15,7 +15,16 @@ interface MongoConnection {
 }
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/improve-my-city';
-const DB_NAME = MONGODB_URI.split('/').pop() || 'improve-my-city';
+let DB_NAME: string = 'improve-my-city';
+try {
+  const u = new URL(MONGODB_URI);
+  const name = (u.pathname || '').replace(/^\//, '');
+  DB_NAME = name || 'improve-my-city';
+} catch {
+  const pathPart = MONGODB_URI.split('?')[0];
+  const segs = pathPart.split('/');
+  DB_NAME = segs[segs.length - 1] || 'improve-my-city';
+}
 
 let singleton: Promise<MongoConnection> | null = null;
 let indexesEnsured = false;

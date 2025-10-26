@@ -72,8 +72,12 @@ class ApiClient {
   }
 }
 
+const baseUrl = typeof window !== 'undefined'
+  ? ''
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000');
+
 export const api = new ApiClient(
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+  baseUrl,
   () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
 );
 
