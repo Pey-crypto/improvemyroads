@@ -4,6 +4,8 @@ import { RoadMatcher } from '@/src/lib/services/RoadMatcher';
 import { ReportModel, type ReportDoc, type ReportStatus } from '@/src/lib/db/models/Report';
 import type { CreateReportInput } from '@/src/lib/db/types/schemas';
 import { toObjectId } from '@/src/lib/db/mongodb';
+import { pwdOfficialsService } from '@/src/lib/services/PwdOfficialsService';
+import { logger } from '@/src/lib/tiles/utils/logger';
 
 export class ReportService {
   private uploader = new FileUploadService();
@@ -55,6 +57,7 @@ export class ReportService {
             roadType: road.roadType,
             roadId: road.roadId,
             district: road.district,
+            sectionLabel: road.sectionLabel,
             distanceFromRoad: road.distanceFromRoad,
             matchConfidence: road.matchConfidence,
             tileCoordinates: road.tileCoordinates,
@@ -62,6 +65,36 @@ export class ReportService {
           }
         : undefined,
     });
+
+    // Fire-and-forget enrichment of Kerala PWD officials based on roadId
+    if (doc.roadData?.roadId) {
+      const idNum = Number(doc.roadData.roadId);
+      if (Number.isFinite(idNum) && idNum > 0) {
+        const log = logger.child({ scope: 'ReportService.enrichOfficials', reportId: doc._id.toString(), sectionId: idNum });
+        (async () => {
+          try {
+            const res = await pwdOfficialsService.fetchOfficials(idNum);
+            const rd = doc.roadData!;
+            const updated = await ReportModel.updateReport(doc._id.toString(), {
+              roadData: {
+                ...rd,
+                roadStartsAt: res.data.roadStartsAt,
+                roadEndsAt: res.data.roadEndsAt,
+                division: res.data.division,
+                subDivision: res.data.subDivision,
+                section: res.data.section,
+                officials: res.data.officials,
+                measuredLength: res.data.measuredLength,
+              },
+            });
+            log.info('Officials enriched');
+            return updated;
+          } catch (e) {
+            log.warn('Officials enrichment failed', { error: (e as Error).message });
+          }
+        })().catch(() => void 0);
+      }
+    }
 
     return doc;
   }

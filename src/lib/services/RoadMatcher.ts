@@ -18,6 +18,7 @@ export interface RoadMatchResult {
   roadType: string;
   roadId?: string;
   district?: string;
+  sectionLabel?: string;
   distanceFromRoad: number;
   matchConfidence: number; // 0-100
   tileCoordinates: TileCoords;
@@ -135,6 +136,7 @@ export class RoadMatcher {
     const type = (props['type'] ?? props['road_type'] ?? props['RD_TYPE'] ?? 'ROAD') as string;
     const roadId = (props['id'] ?? props['road_id'] ?? props['RD_ID']) as string | undefined;
     const district = (props['district'] ?? props['DISTRICT']) as string | undefined;
+    const sectionLabel = (props['section_label'] ?? props['SECTION_LABEL']) as string | undefined;
 
     const maxRadius = 100; // meters
     const confidence = Math.max(0, Math.min(100, Math.round(100 - (distanceM / maxRadius) * 100)));
@@ -144,6 +146,7 @@ export class RoadMatcher {
       roadType: type,
       roadId,
       district,
+      sectionLabel,
       distanceFromRoad: distanceM,
       matchConfidence: confidence,
       tileCoordinates: baseCoords,

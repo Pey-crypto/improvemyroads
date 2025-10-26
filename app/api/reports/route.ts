@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
       category: params.category,
       status: params.status,
       district: params.district,
+      division: params.division,
+      section: params.section,
       userId: params.userId,
       page: params.page,
       limit: params.limit,
@@ -76,6 +78,8 @@ export async function GET(request: NextRequest) {
     if (rest.category) countQuery.category = rest.category;
     if (rest.status) countQuery.status = rest.status;
     if (rest.district) countQuery.district = rest.district;
+    if (rest.division) countQuery['roadData.division'] = rest.division;
+    if (rest.section) countQuery['roadData.section'] = rest.section;
     if (rest.userId) countQuery.userId = toObjectId(rest.userId);
 
     const total = await collections.reports.countDocuments(countQuery);

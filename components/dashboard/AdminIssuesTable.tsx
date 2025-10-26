@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { getReports, type Report, updateReport } from '@/lib/api/reports';
+import { getReports, type Report, updateReport, refreshReportOfficials } from '@/lib/api/reports';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { IconMail, IconPhone, IconRefresh } from '@tabler/icons-react';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import Link from 'next/link';
 
 const statusOptions = ['PENDING', 'UNDER_REVIEW', 'IN_PROGRESS', 'RESOLVED', 'REJECTED'] as const;
 
@@ -16,11 +19,14 @@ export function AdminIssuesTable({ pageSize = 20 }: { pageSize?: number }) {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [division, setDivision] = useState<string>('');
+  const [section, setSection] = useState<string>('');
 
   async function load(p: number) {
     setLoading(true);
     try {
-      const { reports, pagination } = await getReports({ page: p, limit: pageSize, sort: 'date' });
+      const { reports, pagination } = await getReports({ page: p, limit: pageSize, sort: 'date', division: division || undefined, section: section || undefined });
       setReports(reports);
       if (pagination) setTotalPages(pagination.totalPages);
       setPage(p);
@@ -54,6 +60,24 @@ export function AdminIssuesTable({ pageSize = 20 }: { pageSize?: number }) {
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="text-sm font-medium">All Issues</div>
         <div className="flex items-center gap-2">
+          <Input
+            placeholder="Division"
+            value={division}
+            onChange={(e) => setDivision(e.target.value)}
+            className="h-8 w-[12rem]"
+          />
+          <Input
+            placeholder="Section"
+            value={section}
+            onChange={(e) => setSection(e.target.value)}
+            className="h-8 w-[12rem]"
+          />
+          <Button variant="outline" size="sm" onClick={() => load(1)} disabled={loading}>
+            Apply
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => { setDivision(''); setSection(''); load(1); }} disabled={loading}>
+            Clear
+          </Button>
           <Button variant="outline" size="sm" onClick={() => load(page)} disabled={loading}>
             Refresh
           </Button>
@@ -68,6 +92,7 @@ export function AdminIssuesTable({ pageSize = 20 }: { pageSize?: number }) {
               <TableHead>Status</TableHead>
               <TableHead>District</TableHead>
               <TableHead>Road</TableHead>
+              <TableHead>Officials</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -86,7 +111,11 @@ export function AdminIssuesTable({ pageSize = 20 }: { pageSize?: number }) {
             ) : (
               reports.map((r) => (
                 <TableRow key={r._id}>
-                  <TableCell className="max-w-[24rem] truncate" title={r.title}>{r.title}</TableCell>
+                  <TableCell className="max-w-[24rem] truncate" title={r.title}>
+                    <Link href={`/reports/${r._id}`} className="hover:underline">
+                      {r.title}
+                    </Link>
+                  </TableCell>
                   <TableCell>{r.category}</TableCell>
                   <TableCell>
                     <Label htmlFor={`status-${r._id}`} className="sr-only">Status</Label>
@@ -103,6 +132,63 @@ export function AdminIssuesTable({ pageSize = 20 }: { pageSize?: number }) {
                   </TableCell>
                   <TableCell>{r.district || '-'}</TableCell>
                   <TableCell className="max-w-[16rem] truncate" title={r.roadData?.roadName || ''}>{r.roadData?.roadName || '-'}</TableCell>
+                  <TableCell>
+                    {r.roadData?.officials ? (
+                      <div className="flex items-center gap-2">
+                        {r.roadData.officials.ee?.mobile && (
+                          <a href={`tel:${r.roadData.officials.ee.mobile}`} title="Call EE" className="text-blue-600" aria-label="Call EE">
+                            <IconPhone className="size-4" />
+                          </a>
+                        )}
+                        {r.roadData.officials.ee?.email && (
+                          <a href={`mailto:${r.roadData.officials.ee.email}`} title="Email EE" className="text-blue-600" aria-label="Email EE">
+                            <IconMail className="size-4" />
+                          </a>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            setRefreshingId(r._id);
+                            try {
+                              const res = await refreshReportOfficials(r._id);
+                              setReports((prev) => prev.map((x) => x._id === r._id ? res.report : x));
+                              toast.success('Officials refreshed');
+                            } catch (e) {
+                              toast.error((e as Error).message || 'Failed to refresh');
+                            } finally {
+                              setRefreshingId(null);
+                            }
+                          }}
+                          disabled={refreshingId === r._id}
+                          title="Refresh official contacts"
+                        >
+                          <IconRefresh className="mr-1 size-4" /> Refresh
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          setRefreshingId(r._id);
+                          try {
+                            const res = await refreshReportOfficials(r._id);
+                            setReports((prev) => prev.map((x) => x._id === r._id ? res.report : x));
+                            toast.success('Officials fetched');
+                          } catch (e) {
+                            toast.error((e as Error).message || 'Failed to fetch');
+                          } finally {
+                            setRefreshingId(null);
+                          }
+                        }}
+                        disabled={refreshingId === r._id}
+                        title="Fetch official contacts"
+                      >
+                        <IconRefresh className="mr-1 size-4" /> Fetch
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             )}

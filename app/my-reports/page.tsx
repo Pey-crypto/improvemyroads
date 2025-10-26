@@ -4,6 +4,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useEffect, useState } from 'react';
 import { getMyReports, type Report } from '@/lib/api/reports';
 import { toast } from 'sonner';
+import { RoadOfficials } from '@/components/reports/RoadOfficials';
 
 export default function MyReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
@@ -41,6 +42,7 @@ export default function MyReportsPage() {
                   </div>
                   <div className="text-sm">{r.status}</div>
                 </div>
+                <RoadOfficials data={r.roadData} />
               </li>
             ))}
           </ul>

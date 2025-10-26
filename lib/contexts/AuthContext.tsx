@@ -88,13 +88,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const t = localStorage.getItem('token');
-    if (t) setToken(t);
-    setIsLoading(false);
+    if (t) {
+      setToken(t);
+    } else {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     if (!token) return;
-    refreshUser();
+    (async () => {
+      try {
+        await refreshUser();
+      } finally {
+        setIsLoading(false);
+      }
+    })();
   }, [token, refreshUser]);
 
   const value: AuthContextType = useMemo(() => ({

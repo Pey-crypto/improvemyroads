@@ -15,10 +15,22 @@ export type Report = {
     roadType: string;
     roadId?: string;
     district?: string;
+    sectionLabel?: string;
     distanceFromRoad: number;
     matchConfidence: number;
     tileCoordinates: { z: number; x: number; y: number };
     matchedAt: string | Date;
+    roadStartsAt?: string;
+    roadEndsAt?: string;
+    division?: string;
+    subDivision?: string;
+    section?: string;
+    officials?: {
+      ee: { title: string; mobile: string; email: string };
+      aee: { title: string; mobile: string; email: string };
+      ae: { title: string; mobile: string; email: string };
+    };
+    measuredLength?: number;
   };
   upvotes: number;
   downvotes: number;
@@ -115,4 +127,8 @@ export async function createReport(input: {
   if (typeof input.longitude === 'number') fd.set('longitude', String(input.longitude));
   fd.set('image', input.image);
   return api.uploadFile<{ report: Report }>(`/api/reports`, fd);
+}
+
+export async function refreshReportOfficials(id: string) {
+  return api.post<{ report: Report; cached: boolean; timestamp: string }>(`/api/reports/${id}/refresh-officials`, {});
 }

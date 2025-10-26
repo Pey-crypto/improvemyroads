@@ -11,10 +11,22 @@ export interface RoadData {
   roadType: string;
   roadId?: string;
   district?: string;
+  sectionLabel?: string;
   distanceFromRoad: number; // meters
   matchConfidence: number;  // 0-100
   tileCoordinates: { z: number; x: number; y: number };
   matchedAt: Date;
+  roadStartsAt?: string;
+  roadEndsAt?: string;
+  division?: string;
+  subDivision?: string;
+  section?: string;
+  officials?: {
+    ee: { title: string; mobile: string; email: string };
+    aee: { title: string; mobile: string; email: string };
+    ae: { title: string; mobile: string; email: string };
+  };
+  measuredLength?: number;
 }
 
 export interface ReportDoc {
@@ -148,6 +160,8 @@ export const ReportModel = {
     if (filters.category) query.category = filters.category;
     if (filters.status) query.status = filters.status;
     if (filters.district) query.district = filters.district;
+    if (filters.division) query['roadData.division'] = filters.division;
+    if (filters.section) query['roadData.section'] = filters.section;
     if (filters.userId) query.userId = toObjectId(filters.userId);
 
     const page = filters.page ?? 1;
@@ -163,20 +177,19 @@ export const ReportModel = {
     }
 
     if (sort === 'distance' && filters.lat !== undefined && filters.lng !== undefined) {
-      // Use $geoNear would require aggregation; for simplicity, approximate by sorting after fetch
-      const all = (await collections.reports
-        .aggregate([
-          {
-            $geoNear: {
-              near: { type: 'Point', coordinates: [filters.lng, filters.lat] },
-              distanceField: 'dist.calculated',
-              spherical: true,
-              key: 'location',
-            },
+      const pipeline: Record<string, unknown>[] = [
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [filters.lng, filters.lat] },
+            distanceField: 'dist.calculated',
+            spherical: true,
+            key: 'location',
           },
-          { $limit: limit },
-        ])
-        .toArray()) as ReportDoc[];
+        },
+      ];
+      if (Object.keys(query).length) pipeline.push({ $match: query });
+      pipeline.push({ $limit: limit });
+      const all = (await collections.reports.aggregate(pipeline).toArray()) as ReportDoc[];
       return all;
     }
 

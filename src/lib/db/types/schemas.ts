@@ -44,6 +44,8 @@ export const ReportFiltersSchema = z.object({
   category: z.enum(['POTHOLE', 'GARBAGE', 'STREETLIGHT', 'WATER', 'ROAD', 'OTHER']).optional(),
   status: z.enum(['PENDING', 'UNDER_REVIEW', 'IN_PROGRESS', 'RESOLVED', 'REJECTED']).optional(),
   district: z.string().optional(),
+  division: z.string().optional(),
+  section: z.string().optional(),
   userId: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
