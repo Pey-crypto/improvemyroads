@@ -9,7 +9,10 @@ export type Report = {
   imageUrl?: string;
   latitude?: number;
   longitude?: number;
+  upvotes: number;
+  downvotes: number;
   createdAt?: string;
+  myVote?: 'UP' | 'DOWN' | null;
 };
 
 export type Pagination = { page: number; limit: number; total: number; totalPages: number };
@@ -31,7 +34,7 @@ export async function getReportById(id: string) {
 }
 
 export async function voteReport(id: string, voteType: 'UP' | 'DOWN') {
-  return api.post<{ ok: boolean }>(`/api/reports/${id}/vote`, { voteType });
+  return api.post<{ report: { id: string; upvotes: number; downvotes: number }; userVote: 'UP' | 'DOWN' | null }>(`/api/reports/${id}/vote`, { voteType });
 }
 
 export async function updateReport(id: string, data: Partial<Report> & { status?: Report['status'] }) {

@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { createReport } from '@/lib/api/reports';
+import { api } from '@/lib/api/client';
 import { useRouter } from 'next/navigation';
 
 const categories = ['POTHOLE','GARBAGE','STREETLIGHT','WATER','ROAD','OTHER'] as const;
@@ -25,6 +26,8 @@ export function CreateIssueDialog({
   const [category, setCategory] = React.useState<Category>('OTHER');
   const [image, setImage] = React.useState<File | null>(null);
   const [coords, setCoords] = React.useState<{ lat?: number; lng?: number }>({});
+  const [roadMatch, setRoadMatch] = React.useState<null | { roadName: string; roadType: string; district?: string; distanceFromRoad: number; matchConfidence: number }> (null);
+  const [matchTried, setMatchTried] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const router = useRouter();
 
@@ -36,6 +39,25 @@ export function CreateIssueDialog({
       () => setCoords({})
     );
   }, [open]);
+
+  React.useEffect(() => {
+    const doMatch = async () => {
+      if (!open || matchTried) return;
+      if (coords.lat == null || coords.lng == null) return;
+      try {
+        const res = await api.post<{ match: null | { roadName: string; roadType: string; district?: string; distanceFromRoad: number; matchConfidence: number } }>(
+          '/api/utils/match-road',
+          { lat: coords.lat, lng: coords.lng }
+        );
+        setRoadMatch(res.match);
+      } catch (e) {
+        // Silent fail, preview is optional
+      } finally {
+        setMatchTried(true);
+      }
+    };
+    void doMatch();
+  }, [open, coords, matchTried]);
 
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -116,6 +138,12 @@ export function CreateIssueDialog({
               <span>Waiting for location permission...</span>
             )}
           </div>
+          {roadMatch && (
+            <div className="text-xs text-muted-foreground">
+              Nearest road: <span className="font-medium">{roadMatch.roadName}</span> ({roadMatch.roadType}) · {Math.round(roadMatch.distanceFromRoad)} m away · {roadMatch.matchConfidence}% match
+              {roadMatch.district ? ` · ${roadMatch.district}` : ''}
+            </div>
+          )}
           <div className="flex gap-2 justify-end pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={submitting}>Submit</Button>

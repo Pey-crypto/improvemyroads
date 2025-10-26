@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server';
-import { requireAuth } from '@/src/lib/middleware/auth';
+import { requireAuth, getCurrentUser } from '@/src/lib/middleware/auth';
 import { jsonOk, jsonError } from '@/src/lib/middleware/errorHandler';
 import { CreateReportSchema, ReportFiltersSchema } from '@/src/lib/db/types/schemas';
 import { ReportService } from '@/src/lib/services/ReportService';
 import { ReportModel } from '@/src/lib/db/models/Report';
 import { getMongo, toObjectId } from '@/src/lib/db/mongodb';
+import { VoteModel } from '@/src/lib/db/models/Vote';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -59,6 +60,16 @@ export async function GET(request: NextRequest) {
     const { page, limit, ...rest } = parsed.data;
     const reports = await ReportModel.findReports({ ...rest, page, limit });
 
+    // Optionally enrich with current user's vote
+    const me = await getCurrentUser(request);
+    let reportsWithVote = reports as unknown as Array<Record<string, unknown>>;
+    if (me) {
+      const ids = reports.map((r) => r._id.toString());
+      const votes = await VoteModel.findVotesForReports(me.id, ids);
+      const voteMap = new Map(votes.map((v) => [v.reportId.toString(), v.voteType]));
+      reportsWithVote = reports.map((r) => ({ ...r, myVote: (voteMap.get(r._id.toString()) as 'UP' | 'DOWN' | undefined) ?? null }));
+    }
+
     // Total count for pagination (without geo sort)
     const { collections } = await getMongo();
     const countQuery: Record<string, unknown> = {};
@@ -70,7 +81,7 @@ export async function GET(request: NextRequest) {
     const total = await collections.reports.countDocuments(countQuery);
     const totalPages = Math.ceil(total / (limit || 20));
 
-    return jsonOk({ reports, pagination: { page, limit, total, totalPages } }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+    return jsonOk({ reports: reportsWithVote, pagination: { page, limit, total, totalPages } }, { headers: { 'Access-Control-Allow-Origin': '*' } });
   } catch (e) {
     return jsonError('SERVER_ERROR', (e as Error).message, undefined, 400);
   }

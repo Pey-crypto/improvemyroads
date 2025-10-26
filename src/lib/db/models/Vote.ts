@@ -54,6 +54,15 @@ export const VoteModel = {
     return docs;
   },
 
+  async findVotesForReports(userId: string, reportIds: string[]): Promise<VoteDoc[]> {
+    const { collections } = await getMongo();
+    const ids = reportIds.map((id) => toObjectId(id));
+    const docs = (await collections.votes
+      .find({ userId: toObjectId(userId), reportId: { $in: ids } })
+      .toArray()) as VoteDoc[];
+    return docs;
+  },
+
   async deleteVotesByReport(reportId: string): Promise<number> {
     const { collections } = await getMongo();
     const res = await collections.votes.deleteMany({ reportId: toObjectId(reportId) });

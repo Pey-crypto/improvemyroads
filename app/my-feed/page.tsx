@@ -1,9 +1,11 @@
 "use client";
 
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { getReports, type Report } from '@/lib/api/reports';
+import { getReports, voteReport, type Report } from '@/lib/api/reports';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { IconThumbDown, IconThumbUp } from '@tabler/icons-react';
 
 export default function MyFeedPage() {
   const [reports, setReports] = useState<Report[]>([]);
@@ -47,7 +49,37 @@ export default function MyFeedPage() {
                     <div className="font-medium">{r.title}</div>
                     <div className="text-xs text-muted-foreground">{r.category}</div>
                   </div>
-                  <div className="text-sm">{r.status}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="hidden sm:block text-xs text-muted-foreground mr-2">{r.status}</div>
+                    <Button
+                      variant={r.myVote === 'UP' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const res = await voteReport(r._id, 'UP');
+                          setReports((prev) => prev.map((x) => x._id === r._id ? { ...x, upvotes: res.report.upvotes, downvotes: res.report.downvotes, myVote: res.userVote } : x));
+                        } catch (e) {
+                          toast.error((e as Error).message || 'Failed to vote');
+                        }
+                      }}
+                    >
+                      <IconThumbUp className="mr-1 size-4" /> {r.upvotes}
+                    </Button>
+                    <Button
+                      variant={r.myVote === 'DOWN' ? 'destructive' : 'outline'}
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const res = await voteReport(r._id, 'DOWN');
+                          setReports((prev) => prev.map((x) => x._id === r._id ? { ...x, upvotes: res.report.upvotes, downvotes: res.report.downvotes, myVote: res.userVote } : x));
+                        } catch (e) {
+                          toast.error((e as Error).message || 'Failed to vote');
+                        }
+                      }}
+                    >
+                      <IconThumbDown className="mr-1 size-4" /> {r.downvotes}
+                    </Button>
+                  </div>
                 </div>
               </li>
             ))}
